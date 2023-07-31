@@ -1,0 +1,55 @@
+This is my code to to generate textual report from numeric medical data. Here I input a patient ID, then it follows the step of my code to generate a report. I am using the API of OpenAI. Now make me a streamlit app where I will click a row of the dataset and it will generate me the similar report on a modal:
+
+import openai
+import pandas as pd
+from conf import OPENAI_API_KEY
+
+df_specifics = pd.read_csv('patients_detailed_data_specs.csv')
+
+patient_id = input('Patient ID: ')
+
+patient = df_specifics[df_specifics["patient_id"] == patient_id].iloc[0]
+
+column_names = ['patient_id', 'test_id', 'name',  'Age', 'Gender', 'HR', 'O2Sat', 'Temp', 'SBP', 'MAP', 'DBP', 'Resp', 'EtCO2', 'BaseExcess', 'HCO3', 'FiO2', 'PaCO2', 'SaO2', 'AST', 'BUN', 'Alkalinephos', 'Calcium', 'Glucose', 'Bilirubin_total', 'Hgb', 'Platelets', 'SepsisLabel']
+
+column_details = ['Patient ID', 'Test ID', 'Name', 'Age', 'Gender', 'Heart rate', 'Pulse oximetry', 'Temperature', 'Systolic BP', 'Mean arterial pressure', 'Diastolic BP', 'Respiration rate', 'End tidal carbon dioxide', 'Measure of excess bicarbonate', 'Bicarbonate', 'Fraction of inspired oxygen', 'Partial pressure of carbon dioxide from arterial blood', 'Oxygen saturation from arterial blood', 'Aspartate transaminase', 'Blood urea nitrogen', 'Alkaline phosphatase', 'Calcium', 'Serum glucose', 'Total bilirubin', 'Hematocrit', 'Platelets', 'Does the patient have sepsis?']
+
+column_units = ['', '', '', '', '', 'bpm', '%', 'Deg C', 'mm Hg', 'mm Hg', 'mm Hg', 'breaths per minute', 'mm Hg', 'mmol/L', 'mmol/L', '%', 'mm Hg', '%', 'IU/L', 'mg/dL', 'IU/L', 'mg/dL', 'mg/dL', 'mg/dL', 'g/dL', 'count*10^3/µL', '']
+
+prompt = f''
+
+for column in range(len(column_names)):
+    if not pd.isna(patient[column_names[column]]):
+        prompt += f'{column_details[column]}: {patient[column_names[column]]} {column_units[column]}\n'
+
+        label_column = f'{column_names[column]}_label'
+
+        if label_column in patient.index:
+            prompt += f'{column_details[column]} value indicates: {patient[label_column]}\n'
+
+prompt += f"Does the patient have any disease?\n" \
+      f"Generate a 5-point medical report with a conclusion based on the above information for doctors. "
+
+
+def report_generation_openai(prompt):
+    completions = openai.Completion.create(
+        engine="text-davinci-003",
+        prompt=prompt,
+        max_tokens=1024,
+        n=1,
+        stop=None,
+        temperature=0.5,
+    )
+
+    report = completions.choices[0].text.strip()
+    return report
+
+medical_report = report_generation_openai(prompt)
+print(medical_report)
+
+
+Dataset looks like this:
+
+patient_id,test_id,name,Age,Gender,HR,HR_label,O2Sat,O2Sat_label,Temp,Temp_label,SBP,SBP_label,MAP,MAP_label,DBP,DBP_label,Resp,Resp_label,EtCO2,EtCO2_label,BaseExcess,BaseExcess_label,HCO3,HCO3_label,FiO2,PaCO2,PaCO2_label,SaO2,SaO2_label,AST,AST_label,BUN,BUN_label,Alkalinephos,Alkalinephos_label,Calcium,Calcium_label,Glucose,Glucose_label,Bilirubin_total,Bilirubin_total_label,Hgb,Hgb_label,Platelets,Platelets_label,SepsisLabel
+p000001,1,Melissa Davis,83,female,97.0,normal,95.0,normal,36.11,normal,98.0,Normal SBP,75.33,Normal,43.0,Low,19.0,Normal,35.0,Normal,24.0,Alkalemia,45.0,High,0.28,100.0,Hypercapnia,88.0,moderate hypoxia,16.0,Significantly elevated,14.0,Significantly elevated,98.0,Significantly elevated,9.3,Normal,193.0,Significantly elevated,0.3,Significantly elevated,12.5,Mildly low,317.0,Highly decreased,no
+p000002,1,Robin Mcdonald,72.5,92.0,36.385,101.0,54.5,43.0,17.75,35.0,19.0,45.4,0.25,7.32,100.0,89.0,16.0,29.8,98.0,9.43,87.8,0.88,3.3,127.5,2.84,2.23,3.77,4.65,0.3,3.7,35.36,11.95,30.5,14.33,,320.0,75.91,0,0.0,1.0,-98.6,1,0
